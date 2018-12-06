@@ -42,7 +42,7 @@ class Map:
         pygame.display.flip()
         for obstacle in self.Naturals:
             if type(obstacle).__name__ == "Tree":
-                pygame.draw.circle(screen, (0,0,255), (obstacle.position)
+                pygame.draw.circle(screen, (0,0,255), (obstacle.position[0]-obstacle.radius, obstacle.position[1]-obstacle.radius, obstacle.position[0]+obstacle.radius, obstacle.position[1]+obstacle.radius)
     def Destroy(self, object):
         for i in self.Tanks:
             if id(i) == id(object):
