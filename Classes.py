@@ -23,6 +23,7 @@ class Map:
         self.Bullets = []
         self.Naturals = []
 
+
     def AddObjects(self, listofObjects):
         for o in listofObjects:
             if type(o).__name__ == "Tank":
@@ -38,12 +39,13 @@ class Map:
         screen.fill((173,255,47))
         viewport = (camera, (viewSize[0]+camera[0], viewSize[1]+camera[1]))
         for tank in self.Tanks:
-                adjustPosition = [tank.position[0]-camera[0], tank.position[1]-camera[1]]
+                adjustPosition = [tank.position[0] - camera[0], tank.position[1] - camera[1]]
                 if tank.isPlayer:
-                    blueInstance = rot_center(bluetank, tank.rotation)
-                    # blueInstance.set_colorkey((195,195,195))
+                    blueInstance = rotate(bluetank,tank.rotation)
+                    blueInstance.set_colorkey((195,195,195))
 
-                    screen.blit(blueInstance, adjustPosition)
+                    screen.blit(blueInstance,adjustPosition)
+
                 else:
                     redInstance = pygame.transform.rotozoom(redtank, tank.rotation,1)
                     # redInstance.set_colorkey((195, 195, 195))
@@ -100,8 +102,15 @@ class Tank:
 
 
 class Bullet:
-    def __init___(self, current, target):
+    def __init___(self, current, angle, speed):
         self.position = current
+        self.angle = angle
+        self.speed = speed
+        self.counter = 0
+        while self.counter < 100:
+            self.position = self.position + [speed*math.cos(2*angle*math.pi/360), speed*math.sin(2*angle*math.pi/360)]
+            self.counter += 1
+        currentMap.Destroy(self)
 
 
 class Tree:
@@ -135,15 +144,14 @@ def takeDamage(object, damage):
         object.Die()
 
 
-def rot_center(image, angle):
-    """rotate an image while keeping its center and size"""
-    orig_rect = image.get_rect()
-    rot_image = pygame.transform.rotate(image, angle)
-    rot_rect = orig_rect.copy()
-    rot_rect.center = rot_image.get_rect().center
-    rot_image = rot_image.subsurface(rot_rect).copy()
-    return rot_image
+def rotate(image, angle):
+    """rotate a Surface, maintaining position."""
 
+    loc = image.get_rect().center  #rot_image is not defined
+    rot_sprite = pygame.transform.rotate(image, angle)
+    rot_sprite.get_rect().center = loc
+
+    return rot_sprite
 
 currentMap = Map()
 #health, damage, speed, bspeed, position, isPlayer
@@ -154,6 +162,7 @@ for i in range(1000):
     objects.append(Tree([random.randint(0,mapSize[0]), random.randint(0,mapSize[1])]))
 
 currentMap.AddObjects(objects)
+
 while True:
     for event in pygame.event.get():
         if event == pygame.QUIT:
@@ -163,9 +172,9 @@ while True:
 
     if keys_pressed[pygame.K_RIGHT]:
         if myTank.position[0] <= mapSize[0]-interval-tanksize[0]:
-            # myTank.position[0] += interval
-            myTank.rotation += 1
-            # camera[0] += interval
+            myTank.position[0] += interval
+
+            camera[0] += interval
     if keys_pressed[pygame.K_LEFT]:
         if myTank.position[0] >= interval:
             myTank.position[0] -= interval
@@ -178,5 +187,9 @@ while True:
         if myTank.position[1] <= mapSize[1]-interval-tanksize[1]:
             myTank.position[1] += interval
             camera[1] += interval
+    if keys_pressed[pygame.K_r]:
+        myTank.rotation += 1
+    if keys_pressed[pygame.K_SPACE]:
+        pass
     currentMap.Draw()
     clock.tick(60)
