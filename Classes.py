@@ -2,14 +2,15 @@ import pygame
 import math
 import random
 mapSize = (5000, 4000)
-viewSize = (400,300)
+viewSize = (1000,500)
 screen = pygame.display.set_mode(viewSize)
+
 camera = [0,0]
 clock = pygame.time.Clock()
 pygame.init()
 pygame.font.init()
-systemFont = pygame.font.SysFont('Calibri', 30)
-tanksize = (30,15)
+systemFont = pygame.font.SysFont('Courier New', 10)
+tanksize = (50,25)
 bluetank = pygame.image.load("tankblue.png")
 bluetank = pygame.transform.scale(bluetank, tanksize)
 redtank = pygame.image.load("tankred.png")
@@ -39,14 +40,15 @@ class Map:
         screen.fill((173,255,47))
         viewport = (camera, (viewSize[0]+camera[0], viewSize[1]+camera[1]))
         for tank in self.Tanks:
-                adjustPosition = [tank.position[0] - camera[0], tank.position[1] - camera[1]]
+
                 if tank.isPlayer:
-                    blueInstance = rotate(bluetank,tank.rotation)
+                    blueInstance, rect = rotate(bluetank,tank.rotation)
                     blueInstance.set_colorkey((195,195,195))
 
-                    screen.blit(blueInstance,adjustPosition)
+                    screen.blit(blueInstance,[(viewSize[0]-rect.width)/2,(viewSize[1]-rect.height)/2])
 
                 else:
+                    adjustPosition = [tank.position[0] - camera[0], tank.position[1] - camera[1]]
                     redInstance = pygame.transform.rotozoom(redtank, tank.rotation,1)
                     # redInstance.set_colorkey((195, 195, 195))
                     screen.blit(redInstance, adjustPosition)
@@ -59,15 +61,15 @@ class Map:
 
             if type(obstacle).__name__ == "Tree":
 
-                point1 = (obstacle.position[0]+obstacle.radius-camera[0], obstacle.position[1]+obstacle.radius-camera[1])
+                point1 = (int(obstacle.position[0]+obstacle.radius-camera[0]), int(obstacle.position[1]+obstacle.radius-camera[1]))
 
-                pygame.draw.circle(screen, (0,100,0), point1, obstacle.radius)
+                pygame.draw.circle(screen, (0,100,0), point1, int(obstacle.radius))
             elif type(obstacle).__name__ == "Rock":
                 point1 = (obstacle.position[0]-camera[0], obstacle.position[1]-camera[1])
                 pygame.draw.rect(screen, (100,100,100), (point1, (obstacle.width, obstacle.height)))
 
         pygame.draw.rect(screen, (255,0,0), ((-camera[0], -camera[1]), mapSize), 3)
-        TankPos = systemFont.render(str(myTank.position), False, (0, 0, 0))
+        TankPos = systemFont.render( "("+str(round(myTank.position[0],2))+", "+str(round(myTank.position[1],2))+")" , False, (0, 0, 0))
         screen.blit(TankPos, (0, 0))
         pygame.display.flip()
 
@@ -86,21 +88,6 @@ class Map:
                 self.Tanks.remove(object)
 
 
-class Tank:
-    def __init__(self, health, damage, speed, bspeed, position, isPlayer, rotation=0):
-        self.health = health
-        self.maxhealth = health
-        self.damage = damage
-        self.speed = speed
-        self.bspeed = bspeed
-        self.position = position
-        self.isPlayer = isPlayer
-        self.rotation = rotation
-
-    def shoot(self, vector):
-        pass
-
-
 class Bullet:
     def __init___(self, current, angle, speed):
         self.position = current
@@ -108,8 +95,9 @@ class Bullet:
         self.speed = speed
         self.counter = 0
         while self.counter < 100:
-            self.position = self.position + [speed*math.cos(2*angle*math.pi/360), speed*math.sin(2*angle*math.pi/360)]
+            self.position = [self.position[0]+angle[0], self.position[1]+angle[1]]
             self.counter += 1
+
         currentMap.Destroy(self)
 
 
@@ -128,9 +116,23 @@ class Rock:
         self.position = position
 
 
-class NaturalPoly:
-    def __int__(self, points):
-        self.points = points
+class Tank:
+    def __init__(self, health, damage, speed, bspeed, position, isPlayer, rotation=0, rspeed = 3):
+        self.health = health
+        self.maxhealth = health
+        self.damage = damage
+        self.speed = speed
+        self.bspeed = bspeed
+        self.position = position
+        self.isPlayer = isPlayer
+        self.rotation = rotation
+        self.rspeed = rspeed
+
+    def shoot(self, position, angle, speed):
+        newBullet = Bullet(position,angle,speed)
+        currentMap.AddObjects([newBullet])
+
+
 
 
 def destroy(object):
@@ -151,13 +153,15 @@ def rotate(image, angle):
     rot_sprite = pygame.transform.rotate(image, angle)
     rot_sprite.get_rect().center = loc
 
-    return rot_sprite
+
+    return rot_sprite, rot_sprite.get_rect()
 
 currentMap = Map()
 #health, damage, speed, bspeed, position, isPlayer
-myTank = Tank(100, 100, 100, 100, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True)
-pooptank = Tank(100,100,100,100,[5,100], False)
-objects = [myTank, Tree((0,100)), Rock((10,30)), pooptank]
+myTank = Tank(100, 100, 100, 100, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5)
+
+enemyTank = Tank(100,100,100,100,[5,100], False)
+objects = [myTank, Tree((0,100)), Rock((10,30)), enemyTank]
 for i in range(1000):
     objects.append(Tree([random.randint(0,mapSize[0]), random.randint(0,mapSize[1])]))
 
@@ -168,28 +172,36 @@ while True:
         if event == pygame.QUIT:
             break
     keys_pressed = pygame.key.get_pressed()
-    interval = 3
+    interval = myTank.speed/50
+    theta = ((myTank.rotation) * 2 * math.pi / 360)
+#(myTank.position[0] <= mapSize[0]-interval-tanksize[0]) and (myTank.position[0] >= interval) and (myTank.position[1] >= interval) and (myTank.position[1] <= mapSize[1]-interval-tanksize[1])
+    if keys_pressed[pygame.K_RIGHT] or keys_pressed[pygame.K_d]:
+        myTank.rotation -= 1
+    if keys_pressed[pygame.K_LEFT] or keys_pressed[pygame.K_a]:
 
-    if keys_pressed[pygame.K_RIGHT]:
-        if myTank.position[0] <= mapSize[0]-interval-tanksize[0]:
-            myTank.position[0] += interval
+        myTank.rotation += 1
+    xInterval = -1*interval*math.cos(theta)
+    yInterval = interval*math.sin(theta)
+    if keys_pressed[pygame.K_DOWN] or keys_pressed[pygame.K_s]:
+        if (myTank.position[0] <= mapSize[0] - xInterval - tanksize[0]) and (myTank.position[0] >= xInterval) and (
+                myTank.position[1] >= yInterval) and (myTank.position[1] <= mapSize[1] - yInterval - tanksize[1]):
 
-            camera[0] += interval
-    if keys_pressed[pygame.K_LEFT]:
-        if myTank.position[0] >= interval:
-            myTank.position[0] -= interval
-            camera[0] -= interval
-    if keys_pressed[pygame.K_UP]:
-        if myTank.position[1] >= interval:
-            myTank.position[1] -= interval
-            camera[1] -= interval
-    if keys_pressed[pygame.K_DOWN]:
-        if myTank.position[1] <= mapSize[1]-interval-tanksize[1]:
-            myTank.position[1] += interval
-            camera[1] += interval
+            myTank.position[0] += xInterval
+            myTank.position[1] += yInterval
+
+            camera[0] += xInterval
+            camera[1] += yInterval
+    if keys_pressed[pygame.K_UP] or keys_pressed[pygame.K_w]:
+
+        if (myTank.position[0] <= mapSize[0] - xInterval - tanksize[0]) and (myTank.position[0] >= xInterval) and (
+                myTank.position[1] >= yInterval) and (myTank.position[1] <= mapSize[1] - yInterval - tanksize[1]):
+            myTank.position[0] -= xInterval
+            myTank.position[1] -= yInterval
+            camera[0] -= xInterval
+            camera[1] -= yInterval
     if keys_pressed[pygame.K_r]:
         myTank.rotation += 1
     if keys_pressed[pygame.K_SPACE]:
-        pass
+        myTank.shoot(myTank.position, [-1*xInterval/interval, -1*yInterval/interval], myTank.bspeed)
     currentMap.Draw()
     clock.tick(60)
