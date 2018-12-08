@@ -1,8 +1,8 @@
 import pygame
 import math
 import random
-mapSize = (5000, 4000)
-viewSize = (1000,500)
+mapSize = (800 , 600)
+viewSize = (400,300)
 screen = pygame.display.set_mode(viewSize)
 camera = [0,0]
 clock = pygame.time.Clock()
@@ -22,7 +22,7 @@ class Map:
         self.Tanks = []
         self.Bullets = []
         self.Naturals = []
-
+        self.healthb = []
 
     def AddObjects(self, listofObjects):
         for o in listofObjects:
@@ -33,7 +33,10 @@ class Map:
                 self.Bullets.append(o)
             else:
                 self.Naturals.append(o)
-            print("It is a " + type(o).__name__)
+    def addHealthBar(self, listofObjects):
+        for o in listofObjects:
+            self.healthb.append(o)
+
 
     def Draw(self):
         screen.fill((173,255,47))
@@ -54,9 +57,24 @@ class Map:
 
         for bullet in self.Bullets:
             if bullet.counter < 100:
+                for i in self.Naturals:
+                    if type(i).__name__ == "Tree":
+                        if getCollision(pygame.Rect(i.position[0]-i.radius, i.position[1]-i.radius, i.radius*2, i.radius*2),(bullet.position, [bullet.position[0] + bullet.angle[0] * bullet.speed / 10,
+                                   bullet.position[1] + bullet.angle[1] * bullet.speed / 10])):
+                            takeDamage(i, 150)
+                            self.Destroy(bullet)
+                    else:
+                        if getCollision(pygame.Rect(i.position[0],i.position[1],i.width, i.height), (bullet.position, [bullet.position[0] + bullet.angle[0] * bullet.speed / 10,
+                                   bullet.position[1] + bullet.angle[1] * bullet.speed / 10])):
+                            takeDamage(i, 150)
+                            self.Destroy(bullet)
+
                 bullet.position = [bullet.position[0] + bullet.angle[0] * bullet.speed / 10,
-                                 bullet.position[1] + bullet.angle[1] * bullet.speed / 10]
+                                   bullet.position[1] + bullet.angle[1] * bullet.speed / 10]
                 bullet.counter += 1
+            else:
+
+                self.Destroy(bullet)
             adjustPosition = [bullet.position[0] - camera[0], bullet.position[1] - camera[1]]
             screen.blit(bulletImage, adjustPosition)
 
@@ -72,28 +90,39 @@ class Map:
                 pygame.draw.rect(screen, (100,100,100), (point1, (obstacle.width, obstacle.height)))
 
         pygame.draw.rect(screen, (255,0,0), ((-camera[0], -camera[1]), mapSize), 3)
+        for object in self.healthb:
+
+            redpart = pygame.draw.rect(screen, (255,0,0), ((object.position[0]-camera[0],object.position[1]-camera[1]), (20,5)))
+            greenpart = pygame.draw.rect(screen,(0,255,0), ((object.position[0]-camera[0],object.position[1]-camera[1]), (20*object.health/object.maxhealth, 5)))
+
         TankPos = systemFont.render( "("+str(round(myTank.position[0],2))+", "+str(round(myTank.position[1],2))+")" , False, (0, 0, 0))
         screen.blit(TankPos, (0, 0))
         pygame.display.flip()
 
 
     def Destroy(self, object):
+        for i in self.healthb:
+            if id(i) == id(object):
+                self.healthb.remove(object)
+                break
+
         for i in self.Tanks:
             if id(i) == id(object):
                 self.Tanks.remove(object)
                 break
         for i in self.Bullets:
             if id(i) == id(object):
-                self.Tanks.remove(object)
+                self.Bullets.remove(object)
                 break
         for i in self.Naturals:
             if id(i) == id(object):
-                self.Tanks.remove(object)
+                self.Naturals.remove(object)
+
 
 
 class Bullet:
     def __init__(self, current, angle, speed):
-        print("pew!")
+
         self.position = current
         self.angle = angle
         self.speed = speed
@@ -108,6 +137,7 @@ class Tree:
     def __init__(self, position):
         self.radius = 5
         self.health = 750
+        self.maxhealth = 750
         self.position = position
 
 
@@ -116,6 +146,7 @@ class Rock:
         self.width = 15
         self.height = 15
         self.health = 2000
+        self.maxhealth = 2000
         self.position = position
 
 
@@ -136,9 +167,6 @@ class Tank:
         newBullet = Bullet(position,angle,speed)
         currentMap.AddObjects([newBullet])
 
-
-
-
 def destroy(object):
     pass
 
@@ -146,8 +174,14 @@ def destroy(object):
 def takeDamage(object, damage):
     if object.health > damage:
         object.health = object.health - damage
+        for i in currentMap.healthb:
+            if id(i) == id(object):
+                return
+        currentMap.addHealthBar([object])
+
+
     else:
-        object.Die()
+        currentMap.Destroy(object)
 
 
 def rotate(image, angle):
@@ -156,11 +190,15 @@ def rotate(image, angle):
     loc = image.get_rect().center  #rot_image is not defined
     rot_sprite = pygame.transform.rotate(image, angle)
     rot_sprite.get_rect().center = loc
-
-
     return rot_sprite, rot_sprite.get_rect()
 
-
+def getCollision(rect, segment):
+    a,b = segment[0]
+    c,d = segment[1]
+    for i in range(6):
+        if rect.collidepoint(a+(a-c)*i/5, b+(b-d)*i/5):
+            return True
+    return False
 
 
 #_START
@@ -170,11 +208,12 @@ def rotate(image, angle):
 
 currentMap = Map()
 #health, damage, speed, bspeed, position, isPlayer
-myTank = Tank(100, 100, 100, 100, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5, 1200)
-myTank.rpm = 1200
+myTank = Tank(100, 100, 100, 300, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5, 1200)
+myTank.rpm = 300
+# health, damage, speed, bspeed, position, isPlayer, rotation=0, rspeed = 3,rpm=180
 enemyTank = Tank(100,100,100,100,[5,100], False)
 objects = [myTank, Tree((0,100)), Rock((10,30)), enemyTank]
-for i in range(1000):
+for i in range(50):
     objects.append(Tree([random.randint(0,mapSize[0]), random.randint(0,mapSize[1])]))
 
 currentMap.AddObjects(objects)
@@ -214,7 +253,7 @@ while True:
     if keys_pressed[pygame.K_r]:
         myTank.rotation += 1
     if keys_pressed[pygame.K_SPACE]:
-        print(myTank.rpm)
+
         if pygame.time.get_ticks() - myTank.lastFired >= 60000/myTank.rpm:
             myTank.lastFired = pygame.time.get_ticks()
             myTank.shoot([camera[0]+viewSize[0]/2, camera[1]+viewSize[1]/2], [-1*xInterval/interval, -1*yInterval/interval], myTank.bspeed)
