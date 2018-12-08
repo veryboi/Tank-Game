@@ -50,24 +50,26 @@ class Map:
                     screen.blit(blueInstance,[(viewSize[0]-rect.width)/2,(viewSize[1]-rect.height)/2])
 
                 else:
-                    adjustPosition = [tank.position[0] - camera[0], tank.position[1] - camera[1]]
-                    redInstance = pygame.transform.rotozoom(redtank, tank.rotation,1)
-                    # redInstance.set_colorkey((195, 195, 195))
+
+                    redInstance,rect = rotate(redtank,tank.rotation)
+                    redInstance.set_colorkey((195,195,195))
+                    adjustPosition = [tank.position[0] - camera[0]-rect.width/2, tank.position[1] - camera[1]-rect.height/2]
                     screen.blit(redInstance, adjustPosition)
 
         for bullet in self.Bullets:
             if bullet.counter < 100:
-                for i in self.Naturals:
+                for i in self.Naturals + self.Tanks:
                     if type(i).__name__ == "Tree":
                         if getCollision(pygame.Rect(i.position[0]-i.radius, i.position[1]-i.radius, i.radius*2, i.radius*2),(bullet.position, [bullet.position[0] + bullet.angle[0] * bullet.speed / 10,
                                    bullet.position[1] + bullet.angle[1] * bullet.speed / 10])):
                             takeDamage(i, 150)
                             self.Destroy(bullet)
                     else:
-                        if getCollision(pygame.Rect(i.position[0],i.position[1],i.width, i.height), (bullet.position, [bullet.position[0] + bullet.angle[0] * bullet.speed / 10,
-                                   bullet.position[1] + bullet.angle[1] * bullet.speed / 10])):
-                            takeDamage(i, 150)
-                            self.Destroy(bullet)
+                        if i != bullet.parent:
+                            if getCollision(pygame.Rect(i.position[0],i.position[1],i.width, i.height), (bullet.position, [bullet.position[0] + bullet.angle[0] * bullet.speed / 10,
+                                       bullet.position[1] + bullet.angle[1] * bullet.speed / 10])):
+                                takeDamage(i, 150)
+                                self.Destroy(bullet)
 
                 bullet.position = [bullet.position[0] + bullet.angle[0] * bullet.speed / 10,
                                    bullet.position[1] + bullet.angle[1] * bullet.speed / 10]
@@ -92,8 +94,8 @@ class Map:
         pygame.draw.rect(screen, (255,0,0), ((-camera[0], -camera[1]), mapSize), 3)
         for object in self.healthb:
 
-            redpart = pygame.draw.rect(screen, (255,0,0), ((object.position[0]-camera[0],object.position[1]-camera[1]), (20,5)))
-            greenpart = pygame.draw.rect(screen,(0,255,0), ((object.position[0]-camera[0],object.position[1]-camera[1]), (20*object.health/object.maxhealth, 5)))
+            redpart = pygame.draw.rect(screen, (255,0,0), ((object.position[0]-camera[0],object.position[1]-camera[1]), (20,2)))
+            greenpart = pygame.draw.rect(screen,(0,255,0), ((object.position[0]-camera[0],object.position[1]-camera[1]), (20*object.health/object.maxhealth, 2)))
 
         TankPos = systemFont.render( "("+str(round(myTank.position[0],2))+", "+str(round(myTank.position[1],2))+")" , False, (0, 0, 0))
         screen.blit(TankPos, (0, 0))
@@ -121,12 +123,13 @@ class Map:
 
 
 class Bullet:
-    def __init__(self, current, angle, speed):
+    def __init__(self, current, angle, speed,parent):
 
         self.position = current
         self.angle = angle
         self.speed = speed
         self.counter = 0
+        self.parent= parent
 
 
 
@@ -162,9 +165,11 @@ class Tank:
         self.rotation = rotation
         self.rspeed = rspeed
         self.rpm = rpm
+        self.width = tanksize[0]
+        self.height = tanksize[1]
         self.lastFired = 0
-    def shoot(self, position, angle, speed):
-        newBullet = Bullet(position,angle,speed)
+    def shoot(self, position, angle, speed,parent):
+        newBullet = Bullet(position,angle,speed, parent)
         currentMap.AddObjects([newBullet])
 
 def destroy(object):
@@ -174,6 +179,7 @@ def destroy(object):
 def takeDamage(object, damage):
     if object.health > damage:
         object.health = object.health - damage
+        print(object.health)
         for i in currentMap.healthb:
             if id(i) == id(object):
                 return
@@ -208,10 +214,10 @@ def getCollision(rect, segment):
 
 currentMap = Map()
 #health, damage, speed, bspeed, position, isPlayer
-myTank = Tank(100, 100, 100, 300, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5, 1200)
+myTank = Tank(1000, 100, 100, 300, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5, 1200)
 myTank.rpm = 300
 # health, damage, speed, bspeed, position, isPlayer, rotation=0, rspeed = 3,rpm=180
-enemyTank = Tank(100,100,100,100,[5,100], False)
+enemyTank = Tank(1000,100,100,100,[5,100], False)
 objects = [myTank, Tree((0,100)), Rock((10,30)), enemyTank]
 for i in range(50):
     if random.randint(0,1):
@@ -225,6 +231,11 @@ while True:
     for event in pygame.event.get():
         if event == pygame.QUIT:
             break
+
+    enemyTank.rotation += 1
+    if pygame.time.get_ticks() - enemyTank.lastFired >= 60000/enemyTank.rpm:
+        enemyTank.lastFired = pygame.time.get_ticks()
+        enemyTank.shoot(enemyTank.position, (random.randint(-1,1),random.randint(-1,1)), 20, enemyTank)
     keys_pressed = pygame.key.get_pressed()
     interval = myTank.speed/50
     theta = ((myTank.rotation) * 2 * math.pi / 360)
@@ -259,6 +270,6 @@ while True:
 
         if pygame.time.get_ticks() - myTank.lastFired >= 60000/myTank.rpm:
             myTank.lastFired = pygame.time.get_ticks()
-            myTank.shoot([camera[0]+viewSize[0]/2, camera[1]+viewSize[1]/2], [-1*xInterval/interval, -1*yInterval/interval], myTank.bspeed)
+            myTank.shoot([camera[0]+viewSize[0]/2, camera[1]+viewSize[1]/2], [-1*xInterval/interval, -1*yInterval/interval], myTank.bspeed, myTank)
     currentMap.Draw()
     clock.tick(60)
