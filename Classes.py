@@ -214,7 +214,10 @@ myTank.rpm = 300
 enemyTank = Tank(100,100,100,100,[5,100], False)
 objects = [myTank, Tree((0,100)), Rock((10,30)), enemyTank]
 for i in range(50):
-    objects.append(Tree([random.randint(0,mapSize[0]), random.randint(0,mapSize[1])]))
+    if random.randint(0,1):
+        objects.append(Tree([random.randint(0,mapSize[0]), random.randint(0,mapSize[1])]))
+    else:
+        objects.append(Rock([random.randint(0,mapSize[0]), random.randint(0,mapSize[1])]))
 
 currentMap.AddObjects(objects)
 
