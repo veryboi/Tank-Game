@@ -93,9 +93,11 @@ class Map:
             else:
 
                 self.Destroy(bullet)
-            adjustPosition = [bullet.position[0] - camera[0], bullet.position[1] - camera[1]]
-            screen.blit(bulletImage, adjustPosition)
 
+            rotBullet, bulletrect = rotate(bulletImage,bullet.RotAngle)
+
+            adjustPosition = [bullet.position[0] - camera[0]-bulletrect.width/2, bullet.position[1] - camera[1]-bulletrect.height/2]
+            screen.blit(rotBullet, adjustPosition)
         for obstacle in self.Naturals:
 
             if type(obstacle).__name__ == "Tree":
@@ -148,7 +150,7 @@ class Bullet:
         self.speed = speed
         self.counter = 0
         self.parent= parent
-
+        self.RotAngle = parent.rotation
 
 
         # currentMap.Destroy(self)
