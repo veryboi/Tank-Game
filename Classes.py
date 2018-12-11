@@ -1,12 +1,14 @@
 import pygame
 import math
 import random
-mapSize = (800 , 600)
-viewSize = (400,300)
-screen = pygame.display.set_mode(viewSize)
+pygame.init()
+infoObject = pygame.display.Info()
+mapSize = (infoObject.current_w*2, infoObject.current_h*2)
+viewSize = ((infoObject.current_w, infoObject.current_h))
+screen = pygame.display.set_mode(viewSize, pygame.FULLSCREEN)
 camera = [0,0]
 clock = pygame.time.Clock()
-pygame.init()
+
 pygame.font.init()
 systemFont = pygame.font.SysFont('Courier New', 10)
 tanksize = (50,25)
@@ -233,10 +235,14 @@ def getStraightLineCollision(segment1, segment2):
     c,d = segment1[1]
     w,x = segment2[0]
     y,z = segment2[1]
-    ArbRect = pygame.Rect(segment1[0], (a-b, 2))
-    repetitions = math.sqrt((a-c)**2+(b-d)**2)
+    print(a, b, c, d)
+    print(w, x, y, z)
+    ArbRect = pygame.Rect(segment1[0], (abs(a-b), 10))
+    repetitions = int(math.sqrt((a-c)**2+(b-d)**2))
     for i in range(repetitions+1):
-        if ArbRect.collidepoint(a+(a-c)*i/5, b+(b-d)*i/5):
+
+        if ArbRect.collidepoint(w+(w-y)*i/5, x+(x-z)*i/5):
+
             return True
     return False
 
@@ -247,7 +253,7 @@ def getStraightLineCollision(segment1, segment2):
 
 currentMap = Map()
 #health, damage, speed, bspeed, position, isPlayer
-myTank = Tank(1000, 100, 100, 300, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5, 1200)
+myTank = Tank(100, 100, 100, 300, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5, 1200)
 myTank.rpm = 300
 # health, damage, speed, bspeed, position, isPlayer, rotation=0, rspeed = 3,rpm=180
 enemyTank = Tank(1000,100,100,100,[5,100], False)
@@ -259,7 +265,7 @@ for i in range(50):
         objects.append(Rock([random.randint(0,mapSize[0]), random.randint(0,mapSize[1])]))
 
 currentMap.AddObjects(objects)
-
+currentMap.addWalls([ ( (0,0) , (0, mapSize[1]) ), ( (0,0),(mapSize[0], 0) ), ( (0,mapSize[1]), (mapSize[0], mapSize[1])), ( (mapSize[0], 0), (mapSize[0], mapSize[1]) ) ])
 while True:
     for event in pygame.event.get():
         if event == pygame.QUIT:
@@ -272,6 +278,7 @@ while True:
     keys_pressed = pygame.key.get_pressed()
     interval = myTank.speed/50
     theta = ((myTank.rotation) * 2 * math.pi / 360)
+
 #(myTank.position[0] <= mapSize[0]-interval-tanksize[0]) and (myTank.position[0] >= interval) and (myTank.position[1] >= interval) and (myTank.position[1] <= mapSize[1]-interval-tanksize[1])
     if keys_pressed[pygame.K_RIGHT] or keys_pressed[pygame.K_d]:
         myTank.rotation -= 1
@@ -280,19 +287,34 @@ while True:
         myTank.rotation += 1
     xInterval = -1*interval*math.cos(theta)
     yInterval = interval*math.sin(theta)
+    segment2 = (
+        (myTank.position[0]-camera[0], myTank.position[1]-camera[1]), (myTank.position[0] + xInterval-camera[0], myTank.position[1] + yInterval-camera[1]))
     if keys_pressed[pygame.K_DOWN] or keys_pressed[pygame.K_s]:
-        if (myTank.position[0] <= mapSize[0] - xInterval - tanksize[0]) and (myTank.position[0] >= xInterval) and (
-                myTank.position[1] >= yInterval) and (myTank.position[1] <= mapSize[1] - yInterval - tanksize[1]):
+        # if (myTank.position[0] <= mapSize[0] - xInterval - tanksize[0]) and (myTank.position[0] >= xInterval) and (
+        #         myTank.position[1] >= yInterval) and (myTank.position[1] <= mapSize[1] - yInterval - tanksize[1]):
 
+
+        # if (myTank.position[0] <= mapSize[0] - xInterval - tanksize[0]) and (myTank.position[0] >= xInterval) and (
+        #         myTank.position[1] >= yInterval) and (myTank.position[1] <= mapSize[1] - yInterval - tanksize[1]):
+        hitsWall = False
+        for segment1 in currentMap.walls:
+            if getStraightLineCollision(segment1, segment2):
+                hitsWall = True
+        if not hitsWall:
             myTank.position[0] += xInterval
             myTank.position[1] += yInterval
-
             camera[0] += xInterval
             camera[1] += yInterval
     if keys_pressed[pygame.K_UP] or keys_pressed[pygame.K_w]:
 
-        if (myTank.position[0] <= mapSize[0] - xInterval - tanksize[0]) and (myTank.position[0] >= xInterval) and (
-                myTank.position[1] >= yInterval) and (myTank.position[1] <= mapSize[1] - yInterval - tanksize[1]):
+    # if (myTank.position[0] <= mapSize[0] - xInterval - tanksize[0]) and (myTank.position[0] >= xInterval) and (
+    #         myTank.position[1] >= yInterval) and (myTank.position[1] <= mapSize[1] - yInterval - tanksize[1]):
+        hitsWall = False
+        for segment1 in currentMap.walls:
+            if getStraightLineCollision(segment1, segment2):
+                hitsWall = True
+                break
+        if not hitsWall:
             myTank.position[0] -= xInterval
             myTank.position[1] -= yInterval
             camera[0] -= xInterval
@@ -305,4 +327,4 @@ while True:
             myTank.shoot([camera[0]+viewSize[0]/2, camera[1]+viewSize[1]/2], myTank.rotation, myTank.bspeed, myTank)
 
     currentMap.Draw()
-    clock.tick(60)
+    clock.tick(61)
