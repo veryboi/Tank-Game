@@ -21,6 +21,54 @@ redtank.convert_alpha()
 bulletImage = pygame.image.load("bullet.png")
 bulletImage.convert_alpha()
 
+
+def intro():
+    # pygame.mixr.Sound.play(start_music)
+    intro = True
+    menu1_x = 200
+    menu1_y = 400
+    menu2_x = 500
+    menu2_y = 400
+    menu_width = 100
+    menu_height = 50
+    while intro:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+
+        pygame.draw.rect(screen, (255,255,255), (200, 400, 100, 50))
+        pygame.draw.rect(screen, (255,255,255), (500, 400, 100, 50))
+        font = pygame.font.SysFont("Arial", 72)
+        hi1 = font.render(
+            "Start", False, (0, 0, 0))
+        hi2 = font.render(
+            "Quit", False, (0, 0, 0))
+
+        screen.fill((0,255,255))
+
+
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+        pygame.draw.rect(screen, (0, 255, 255), (200, 400, 100, 50))
+        pygame.draw.rect(screen, (0, 255, 255), (500, 400, 100, 50))
+        screen.blit(hi1, (200,400))
+
+        screen.blit(hi2, (500, 400))
+        # like a hyperlink to the game page
+        if menu1_x < mouse[0] < menu1_x + menu_width and menu1_y < mouse[1] < menu1_y + menu_height:
+            pygame.draw.rect(screen,(0,0,255),(200,400,100,50))
+            if click[0] == 1:
+                intro = False
+        if menu2_x < mouse[0] < menu2_x + menu_width and menu2_y < mouse[1] < menu2_y + menu_height:
+            pygame.draw.rect(screen,(0,0,255),(500,400,100,50))
+            if click[0] == 1:
+                pygame.quit()
+                quit()
+
+        pygame.display.update()
+        clock.tick(50)
 class Map:
     def __init__(self):
         self.Tanks = []
@@ -192,9 +240,10 @@ class Tank:
         self.lastFired = 0
         self.hitbox = pygame.Rect(0,0,0,0)
     def shoot(self, position, angle, speed,parent):
-        angleCoord =[ math.cos((-1*angle) * 2 * math.pi / 360), math.sin((-1*angle) * 2 * math.pi / 360)]
-        newBullet = Bullet(position,angleCoord,speed, parent)
-        currentMap.AddObjects([newBullet])
+        if self.health > 0:
+            angleCoord =[ math.cos((-1*angle) * 2 * math.pi / 360), math.sin((-1*angle) * 2 * math.pi / 360)]
+            newBullet = Bullet(position,angleCoord,speed, parent)
+            currentMap.AddObjects([newBullet])
 
 def destroy(object):
     pass
@@ -210,10 +259,13 @@ def takeDamage(object, damage):
         currentMap.addHealthBar([object])
 
 
+
+
     else:
+        object.health = 0
         currentMap.Destroy(object)
 
-
+ending = 0
 def rotate(image, angle):
     """rotate a Surface, maintaining position."""
 
@@ -249,15 +301,19 @@ def getStraightLineCollision(segment1, segment2):
 #_START
 
 
-
+intro()
 
 currentMap = Map()
 #health, damage, speed, bspeed, position, isPlayer
-myTank = Tank(100, 100, 100, 300, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5, 1200)
+myTank = Tank(1000, 100, 300, 300, [(viewSize[0]-tanksize[0])/2,(viewSize[1]-tanksize[1])/2], True,5, 1200)
 myTank.rpm = 300
 # health, damage, speed, bspeed, position, isPlayer, rotation=0, rspeed = 3,rpm=180
-enemyTank = Tank(1000,100,100,100,[5,100], False)
-objects = [myTank, Tree((0,100)), Rock((10,30)), enemyTank]
+eTanks = []
+objects = [myTank, Tree((0,100)), Rock((10,30))]
+for i in range(1  ):
+    enemyTank = Tank(1000,100,100,100,[random.randint(0,mapSize[0]),random.randint(0,mapSize[1])], False, rpm = 60)
+    objects.append(enemyTank)
+    eTanks.append(enemyTank)
 for i in range(50):
     if random.randint(0,1):
         objects.append(Tree([random.randint(0,mapSize[0]), random.randint(0,mapSize[1])]))
@@ -270,15 +326,38 @@ while True:
     for event in pygame.event.get():
         if event == pygame.QUIT:
             break
-
-    enemyTank.rotation += 1
-    if pygame.time.get_ticks() - enemyTank.lastFired >= 60000/enemyTank.rpm:
-        enemyTank.lastFired = pygame.time.get_ticks()
-        enemyTank.shoot(enemyTank.position, enemyTank.rotation, 20, enemyTank)
+    aliveTanks = 0
+    for enemyTank in eTanks:
+        if enemyTank.health > 0:
+            aliveTanks += 1
+        if enemyTank.position[0] > myTank.position[0] and enemyTank.position[1] > myTank.position[1]:
+            #2nd quadrant
+            enemyTank.rotation = 270 -math.asin(abs(myTank.position[1] - enemyTank.position[1]) / (math.sqrt(
+                abs(myTank.position[1] - enemyTank.position[1]) ** 2 + abs(
+                    myTank.position[0] - enemyTank.position[0]) ** 2))) * 360 / (2 * math.pi) - 90
+        elif enemyTank.position[0] > myTank.position[0] and enemyTank.position[1] < myTank.position[1]:
+            #2nd quadrant
+            enemyTank.rotation = 270 +math.asin(abs(myTank.position[1] - enemyTank.position[1]) / (math.sqrt(
+                abs(myTank.position[1] - enemyTank.position[1]) ** 2 + abs(
+                    myTank.position[0] - enemyTank.position[0]) ** 2))) * 360 / (2 * math.pi) - 90
+        elif enemyTank.position[0] < myTank.position[0] and enemyTank.position[1] < myTank.position[1]:
+            enemyTank.rotation = 360-math.asin(abs(myTank.position[1] - enemyTank.position[1]) / (math.sqrt(
+                abs(myTank.position[1] - enemyTank.position[1]) ** 2 + abs(
+                    myTank.position[0] - enemyTank.position[0]) ** 2))) * 360 / (2 * math.pi)
+        else:
+            enemyTank.rotation = math.asin(abs(myTank.position[1]-enemyTank.position[1])/(math.sqrt(abs(myTank.position[1]-enemyTank.position[1])**2 + abs(myTank.position[0]-enemyTank.position[0])**2)))*360/(2*math.pi)
+        if pygame.time.get_ticks() - enemyTank.lastFired >= 60000/enemyTank.rpm:
+            enemyTank.lastFired = pygame.time.get_ticks()
+            enemyTank.shoot(enemyTank.position, enemyTank.rotation, 20, enemyTank)
     keys_pressed = pygame.key.get_pressed()
     interval = myTank.speed/50
     theta = ((myTank.rotation) * 2 * math.pi / 360)
-
+    print(aliveTanks)
+    if aliveTanks == 0:
+        break
+    elif myTank.health == 0:
+        ending = 1
+        break
 #(myTank.position[0] <= mapSize[0]-interval-tanksize[0]) and (myTank.position[0] >= interval) and (myTank.position[1] >= interval) and (myTank.position[1] <= mapSize[1]-interval-tanksize[1])
     if keys_pressed[pygame.K_RIGHT] or keys_pressed[pygame.K_d]:
         myTank.rotation -= 1
@@ -328,3 +407,16 @@ while True:
 
     currentMap.Draw()
     clock.tick(61)
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            done = True
+    font = pygame.font.SysFont("Agency FB Bold", 36, True, True)
+    if ending == 0:
+        endGame = "Game over! You won!"
+    else:
+        endGame = "Game over! You lost.."
+    screen.fill((0,0,0))
+    gameover = font.render(endGame, True, (255,255,255))
+    screen.blit(gameover, [750,750])
+    pygame.display.flip()
