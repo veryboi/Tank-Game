@@ -1,2 +1,2 @@
 # Tank game thing
-It lookscool
+Made for a school project. Walls don't work.
